@@ -19,7 +19,7 @@ load_dotenv()
 
 # ログの準備
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("todo-server")
+logger = logging.getLogger("taskmate-server")
 
 # JSONファイルのパス設定
 OUTPUT_DIR = "output"
@@ -29,7 +29,7 @@ TASKS_FILE = os.path.join(OUTPUT_DIR, "tasks.json")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # サーバの準備
-app = Server("todo-server")
+app = Server("taskmate-server")
 
 # JSONファイルから全タスクを読み込む関数
 def read_tasks():
@@ -73,19 +73,19 @@ def generate_subtask_id(subtasks):
 async def list_resources() -> list[Resource]:
     return [
         Resource(
-            uri=AnyUrl("todo://tasks/all"),
+            uri=AnyUrl("taskmate://tasks/all"),
             name="All Tasks",
             mimeType="application/json",
             description="Complete list of all tasks"
         ),
         Resource(
-            uri=AnyUrl("todo://tasks/pending"),
+            uri=AnyUrl("taskmate://tasks/pending"),
             name="Pending Tasks",
             mimeType="application/json",
             description="List of tasks not yet completed"
         ),
         Resource(
-            uri=AnyUrl("todo://tasks/completed"),
+            uri=AnyUrl("taskmate://tasks/completed"),
             name="Completed Tasks",
             mimeType="application/json",
             description="List of completed tasks"
@@ -101,11 +101,11 @@ async def read_resource(uri: AnyUrl) -> str:
     tasks = read_tasks()
     
     # リソースURIに基づいてフィルタリング
-    if uri_str == "todo://tasks/all":
+    if uri_str == "taskmate://tasks/all":
         filtered_tasks = tasks
-    elif uri_str == "todo://tasks/pending":
+    elif uri_str == "taskmate://tasks/pending":
         filtered_tasks = [t for t in tasks if t.get("status") in ["todo", "in_progress"]]
-    elif uri_str == "todo://tasks/completed":
+    elif uri_str == "taskmate://tasks/completed":
         filtered_tasks = [t for t in tasks if t.get("status") == "done"]
     else:
         raise ValueError(f"Unknown resource: {uri}")
@@ -250,6 +250,24 @@ async def list_tools() -> list[Tool]:
                 },
                 "required": ["task_id", "subtask_id", "status"]
             }
+        ),
+        Tool(
+            name="add_note",
+            description="タスクにノートを追加します。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "integer",
+                        "description": "タスクID"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "ノートの内容"
+                    }
+                },
+                "required": ["task_id", "content"]
+            }
         )
     ]
 
@@ -258,7 +276,7 @@ async def list_tools() -> list[Tool]:
 async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
     # ツール名の検証
     valid_tools = ["get_tasks", "get_next_task", "create_task", "update_progress", 
-                 "complete_task", "add_subtask", "update_subtask"]
+                 "complete_task", "add_subtask", "update_subtask", "add_note"]
     if name not in valid_tools:
         raise ValueError(f"Unknown tool: {name}")
 
@@ -326,7 +344,8 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
                 "priority": arguments.get("priority", 3),
                 "status": "todo",
                 "progress": 0,
-                "subtasks": subtasks
+                "subtasks": subtasks,
+                "notes": []
             }
             
             # タスクを追加して保存
@@ -499,6 +518,46 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
             
             return [TextContent(type="text", 
                      text=f"サブタスク (ID: {subtask_id}) のステータスが '{status}' に更新されました。")]
+        
+        # add_note - ノート追加
+        elif name == "add_note":
+            # 必須パラメータの確認
+            if "task_id" not in arguments or "content" not in arguments:
+                raise ValueError("Missing required parameters: task_id and content")
+            
+            task_id = arguments["task_id"]
+            content = arguments["content"]
+            
+            tasks = read_tasks()
+            
+            # タスクを見つけてノートを追加
+            task_found = False
+            for i, task in enumerate(tasks):
+                if task.get("id") == task_id:
+                    # ノートリストがない場合は作成
+                    if "notes" not in task:
+                        tasks[i]["notes"] = []
+                    
+                    # タイムスタンプを含む新しいノートの作成
+                    import datetime
+                    new_note = {
+                        "id": len(task.get("notes", [])) + 1,
+                        "content": content,
+                        "timestamp": datetime.datetime.now().isoformat()
+                    }
+                    
+                    tasks[i]["notes"].append(new_note)
+                    task_found = True
+                    break
+            
+            if not task_found:
+                return [TextContent(type="text", text=f"エラー: タスク (ID: {task_id}) が見つかりません。")]
+            
+            # 変更を保存
+            write_tasks(tasks)
+            
+            return [TextContent(type="text", 
+                     text=f"ノートがタスク (ID: {task_id}) に追加されました。")]
                 
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")

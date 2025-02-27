@@ -1,0 +1,85 @@
+[
+  {
+    "id": 1,
+    "title": "週次レポートの作成",
+    "description": "先週の売上データを分析し、経営陣向けの週次レポートを作成する。グラフと主要指標の要約を含める。",
+    "priority": 4,
+    "status": "done",
+    "progress": 100,
+    "subtasks": [
+      {
+        "id": 1,
+        "description": "データの収集",
+        "status": "todo"
+      },
+      {
+        "id": 2,
+        "description": "グラフ作成",
+        "status": "todo"
+      },
+      {
+        "id": 3,
+        "description": "分析文書の作成",
+        "status": "todo"
+      },
+      {
+        "id": 4,
+        "description": "レビュー依頼",
+        "status": "todo"
+      },
+      {
+        "id": 5,
+        "description": "最終版の提出",
+        "status": "todo"
+      }
+    ],
+    "notes": []
+  },
+  {
+    "id": 2,
+    "title": "新規プロジェクト計画書",
+    "description": "来月開始予定の新規マーケティングプロジェクトの計画書を作成する。予算、スケジュール、必要リソースを詳細に記載すること。",
+    "priority": 5,
+    "status": "in_progress",
+    "progress": 20,
+    "subtasks": [
+      {
+        "id": 1,
+        "description": "プロジェクトの目的と範囲の定義",
+        "status": "in_progress"
+      },
+      {
+        "id": 2,
+        "description": "予算案の作成",
+        "status": "todo"
+      },
+      {
+        "id": 3,
+        "description": "スケジュールの立案",
+        "status": "todo"
+      },
+      {
+        "id": 4,
+        "description": "リソース配分計画",
+        "status": "todo"
+      },
+      {
+        "id": 5,
+        "description": "リスク評価",
+        "status": "todo"
+      },
+      {
+        "id": 6,
+        "description": "ステークホルダーとの最終確認",
+        "status": "todo"
+      }
+    ],
+    "notes": [
+      {
+        "id": 1,
+        "content": "マーケティング部門と財務部門からの要件を確認済み。プロジェクトの範囲は3つの主要市場に限定する。次回のミーティングは3月5日に予定。",
+        "timestamp": "2025-02-28T01:45:47.538465"
+      }
+    ]
+  }
+]

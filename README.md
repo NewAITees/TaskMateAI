@@ -1,130 +1,170 @@
 # TaskMateAI
-# AI MCP TODO アプリケーション
+## AI/MCP TODOタスク管理アプリケーション
 
-AI MCP (Master Control Program) TODOは、AIが自律的にタスクを管理・実行するためのシンプルなRESTful APIアプリケーションです。
+TaskMateAIは、AIが自律的にタスクを管理・実行するためのシンプルなタスク管理アプリケーションで、MCP (Model Context Protocol)を通じて操作できます。
+
+[English README available here](README_EN.md)
 
 ## 特徴
 
-- シンプルなタスク管理 API
+- MCPを通じたタスクの作成・管理
 - サブタスクのサポート
 - 優先順位に基づくタスク処理
-- 進捗報告機能
+- タスクの進捗管理と報告機能
+- ノート追加機能
 - JSONファイルによるデータ永続化
 
 ## インストール
 
 ### 前提条件
 
-- Python 3.7以上
-- pip (Pythonパッケージマネージャー)
+- Python 3.12以上
+- uv (Python パッケージマネージャー)
+- WSL (Windows Subsystem for Linux) ※Windows環境の場合
 
 ### インストール手順
 
 1. リポジトリをクローンまたはダウンロード:
 
 ```bash
-git clone <repository-url>
-cd ai-mcp-todo
+git clone https://github.com/YourUsername/TaskMateAI.git
+cd TaskMateAI
 ```
 
 2. 必要なパッケージをインストール:
 
 ```bash
-pip install -r requirements.txt
-```
-
-または直接インストール:
-
-```bash
-pip install fastapi uvicorn
+uv install -r requirements.txt
 ```
 
 ## 使用方法
 
 ### アプリケーションの起動
 
+WSL環境では以下のようにアプリケーションを実行できます:
+
 ```bash
-python app.py
+cd /path/to/TaskMateAI/src/TaskMateAI
+uv run TaskMateAI
 ```
 
-これにより、APIサーバーが `http://localhost:8000` で起動します。
+### MCP構成
 
-### API ドキュメント
+MCPで利用するための設定例:
 
-アプリケーション起動後、以下のURLでAPIドキュメントにアクセスできます:
-
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-
-### 基本的なAPI操作
-
-#### タスクの作成
-
-```bash
-curl -X POST "http://localhost:8000/tasks" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "サンプルタスク",
-    "description": "これはサンプルタスクです",
-    "priority": 3,
-    "subtasks": [
-      {"description": "サブタスク1"},
-      {"description": "サブタスク2"}
-    ]
-  }'
+```json
+{
+    "mcpServers": {
+      "TodoApplication": {
+        "command": "uv",
+        "args": [
+          "--directory", 
+          "/絶対パス/TaskMateAI",
+          "run",
+          "TaskMateAI"
+        ],
+        "env": {},
+        "alwaysAllow": [
+          "get_tasks", "get_next_task", "create_task", "update_progress", 
+          "complete_task", "add_subtask", "update_subtask"
+        ]
+      }
+    }
+}
 ```
 
-#### タスク一覧の取得
-
-```bash
-curl -X GET "http://localhost:8000/tasks"
+```json
+{
+    "mcpServers": {
+      "TodoApplication": {
+        "command": "wsl.exe",
+        "args": [
+          "-e", 
+          "bash", 
+          "-c", 
+          "cd /絶対パス/TaskMateAI && /home/ユーザー/.local/bin/uv run TaskMateAI"
+        ],
+        "env": {},
+        "alwaysAllow": [
+          "get_tasks", "get_next_task", "create_task", "update_progress", 
+          "complete_task", "add_subtask", "update_subtask"
+        ]
+      }
+    }
+}
 ```
 
-#### 次のタスクを取得 (AI用)
+### 利用可能なMCPツール
 
-```bash
-curl -X GET "http://localhost:8000/next-task"
-```
+TaskMateAIは以下のMCPツールを提供します:
 
-#### タスクの進捗を更新 (AI用)
+1. **get_tasks** - タスクリストの取得（ステータスや優先度でフィルタリング可能）
+2. **get_next_task** - 優先度の高い次のタスクを取得（自動的に進行中ステータスに更新）
+3. **create_task** - 新しいタスクの作成（サブタスク付き）
+4. **update_progress** - タスクの進捗更新
+5. **complete_task** - タスクを完了としてマーク
+6. **add_subtask** - 既存タスクにサブタスクを追加
+7. **update_subtask** - サブタスクのステータス更新
 
-```bash
-curl -X PUT "http://localhost:8000/tasks/1/progress" \
-  -H "Content-Type: application/json" \
-  -d '50.0'
-```
+### データ形式
 
-#### タスクを完了としてマーク (AI用)
+タスクは以下のような構造で管理されます:
 
-```bash
-curl -X PUT "http://localhost:8000/tasks/1/complete"
+```json
+{
+  "id": 1,
+  "title": "タスクのタイトル",
+  "description": "タスクの詳細な説明",
+  "priority": 3,
+  "status": "todo",  // "todo", "in_progress", "done" のいずれか
+  "progress": 0,     // 0-100 の進捗率
+  "subtasks": [
+    {
+      "id": 1,
+      "description": "サブタスクの説明",
+      "status": "todo"  // "todo", "in_progress", "done" のいずれか
+    }
+  ],
+  "notes": [
+    {
+      "id": 1,
+      "content": "ノートの内容",
+      "timestamp": "2025-02-28T09:22:53.532808"
+    }
+  ]
+}
 ```
 
 ## データ保存
 
-タスクデータは `tasks.json` ファイルに保存されます。このファイルはアプリケーションと同じディレクトリに作成されます。
+タスクデータは `output/tasks.json` ファイルに保存されます。このファイルはアプリケーション実行時に自動的に生成・更新されます。
 
 ## プロジェクト構造
 
 ```
-ai-mcp-todo/
-├── app.py           # メインアプリケーションファイル
-├── tasks.json       # データ保存用JSONファイル (自動生成)
-├── requirements.txt # 依存パッケージリスト
-├── README.md        # このファイル
-└── docs/            # ドキュメント
-    ├── PRD.md       # 製品要件定義書
-    ├── AI_GUIDE.md  # AI向けガイド
-    └── JSON_SPEC.md # JSONフォーマット仕様
+TaskMateAI/
+├── src/
+│   └── TaskMateAI/
+│       ├── __init__.py      # パッケージ初期化
+│       └── __main__.py      # メインアプリケーションコード
+├── output/                  # データ保存ディレクトリ
+│   └── tasks.json           # タスクデータ (自動生成)
+├── requirements.txt         # 依存パッケージリスト
+└── README.md                # このファイル
 ```
+
+## 修正予定項目
+
+- タスクが保存されるフォルダが想定と違うので直す
+- 利用する側のフォルダごとにタスクを管理できるようにする
+- テストコードを追加する
+- タスク関連の必要な処理を追加する
+- add noteという機能が残っているので、これをあとで必要か判断する
+- ノートとタスクのそれぞれについてCRUD操作が確実にできるようにする
 
 ## ライセンス
 
 MIT
-
-## 貢献
-
-プルリクエストは歓迎します。大きな変更を行う場合は、まず問題を提起してください。
 
 ## 著者
 

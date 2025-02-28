@@ -41,7 +41,7 @@
     "description": "来月開始予定の新規マーケティングプロジェクトの計画書を作成する。予算、スケジュール、必要リソースを詳細に記載すること。",
     "priority": 5,
     "status": "in_progress",
-    "progress": 20,
+    "progress": 0,
     "subtasks": [
       {
         "id": 1,
@@ -51,7 +51,7 @@
       {
         "id": 2,
         "description": "予算案の作成",
-        "status": "todo"
+        "status": "in_progress"
       },
       {
         "id": 3,
@@ -79,7 +79,126 @@
         "id": 1,
         "content": "マーケティング部門と財務部門からの要件を確認済み。プロジェクトの範囲は3つの主要市場に限定する。次回のミーティングは3月5日に予定。",
         "timestamp": "2025-02-28T01:45:47.538465"
+      },
+      {
+        "id": 2,
+        "content": "本日、マーケティング部門と予算について協議。初期予算を10%増加する方向で調整中。スケジュールについては来週までに最終案を作成予定。",
+        "timestamp": "2025-02-28T09:22:53.532808"
       }
     ]
+  },
+  {
+    "id": 3,
+    "title": "プロジェクト計画書の作成",
+    "description": "次期プロジェクトのための計画書を作成し、チームメンバーと共有する",
+    "priority": 5,
+    "status": "in_progress",
+    "progress": 15,
+    "subtasks": [
+      {
+        "id": 1,
+        "description": "要件の整理",
+        "status": "in_progress"
+      },
+      {
+        "id": 2,
+        "description": "スケジュールの立案",
+        "status": "todo"
+      },
+      {
+        "id": 3,
+        "description": "予算の見積もり",
+        "status": "todo"
+      },
+      {
+        "id": 4,
+        "description": "リスク分析",
+        "status": "todo"
+      },
+      {
+        "id": 5,
+        "description": "チームへの共有準備",
+        "status": "todo"
+      },
+      {
+        "id": 6,
+        "description": "関連部門との調整ミーティングの実施",
+        "status": "todo"
+      }
+    ],
+    "notes": [
+      {
+        "id": 1,
+        "content": "要件の整理を開始。主要ステークホルダーからのインプットをまとめている。来週中に要件確定の予定。",
+        "timestamp": "2025-02-28T09:23:12.602557"
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "title": "週次ミーティングの準備",
+    "description": "毎週金曜日のチームミーティングのためのアジェンダと資料の準備",
+    "priority": 4,
+    "status": "done",
+    "progress": 100,
+    "subtasks": [
+      {
+        "id": 1,
+        "description": "アジェンダの作成",
+        "status": "todo"
+      },
+      {
+        "id": 2,
+        "description": "進捗レポートのまとめ",
+        "status": "todo"
+      },
+      {
+        "id": 3,
+        "description": "資料の準備",
+        "status": "todo"
+      },
+      {
+        "id": 4,
+        "description": "会議室の予約確認",
+        "status": "todo"
+      }
+    ],
+    "notes": []
+  },
+  {
+    "id": 5,
+    "title": "ウェブサイトのデザイン更新",
+    "description": "企業サイトのデザインリニューアルのためのモックアップ作成とレビュー",
+    "priority": 3,
+    "status": "todo",
+    "progress": 0,
+    "subtasks": [
+      {
+        "id": 1,
+        "description": "現状分析",
+        "status": "todo"
+      },
+      {
+        "id": 2,
+        "description": "デザイントレンド調査",
+        "status": "todo"
+      },
+      {
+        "id": 3,
+        "description": "モックアップ作成",
+        "status": "todo"
+      },
+      {
+        "id": 4,
+        "description": "社内レビューの実施",
+        "status": "todo"
+      },
+      {
+        "id": 5,
+        "description": "修正反映",
+        "status": "todo"
+      }
+    ],
+    "notes": []
   }
 ]

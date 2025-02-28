@@ -135,6 +135,9 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+src/taskmateai/output/
+*.code-workspace
+uv.lock
 
 # Spyder project settings
 .spyderproject

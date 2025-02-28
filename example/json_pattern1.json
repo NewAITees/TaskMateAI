@@ -1,0 +1,18 @@
+{
+    "mcpServers": {
+      "TodoApplication": {
+        "command": "uv",
+        "args": [
+          "--directory", 
+          "/絶対パス/TaskMateAI",
+          "run",
+          "TaskMateAI"
+        ],
+        "env": {},
+        "alwaysAllow": [
+          "get_tasks", "get_next_task", "create_task", "update_progress", 
+          "complete_task", "add_subtask", "update_subtask"
+        ]
+      }
+    }
+}

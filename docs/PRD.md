@@ -1,8 +1,8 @@
-# AI MCP TODO アプリケーション - PRD (Product Requirements Document)
+# TaskMateAI - PRD (製品要件定義書)
 
 ## 概要
 
-AI MCP TODO アプリケーションは、AIがMaster Control Program (MCP)として機能し、タスク管理を行うためのシンプルなRESTful APIサービスです。AIは優先順位の高いタスクから順に処理し、進捗を報告し、完了させることができます。
+TaskMateAIは、AIがModel Context Protocol (MCP)を通じて操作できるタスク管理アプリケーションです。AIは優先順位の高いタスクから順に処理し、進捗を報告し、完了させることができます。
 
 ## 目的
 
@@ -12,13 +12,14 @@ AI MCP TODO アプリケーションは、AIがMaster Control Program (MCP)と�
 2. ユーザーが定義したタスクをAIが優先順位に基づいて処理できるようにする
 3. タスクの進捗状況を追跡・報告できるようにする
 4. シンプルかつ拡張可能なアーキテクチャを提供する
+5. MCP (Model Context Protocol)を通じた操作を可能にする
 
 ## ユーザー
 
 主なユーザーは以下の2つです：
 
 1. **エンドユーザー（人間）**: タスクを定義し、AIに処理させる人
-2. **AI**: APIを通じてタスクを取得し、処理を行い、進捗を報告するエージェント
+2. **AI**: MCPを通じてタスクを取得し、処理を行い、進捗を報告するエージェント
 
 ## 機能要件
 
@@ -27,10 +28,10 @@ AI MCP TODO アプリケーションは、AIがMaster Control Program (MCP)と�
 1. **タスク管理**
    - タスクの作成、取得、更新、削除
    - タスクに優先順位を設定
-   - タスクの状態（TODO、進行中、完了）を管理
+   - タスクの状態（todo、in_progress、done）を管理
 
 2. **サブタスク管理**
-   - タスクにサブタスクを追加、更新、削除
+   - タスクにサブタスクを追加、更新
    - サブタスクの状態管理
 
 3. **優先順位ベースのタスク取得**
@@ -40,13 +41,16 @@ AI MCP TODO アプリケーションは、AIがMaster Control Program (MCP)と�
    - AIがタスクの進捗状況を報告
    - タスクを完了としてマーク
 
+5. **ノート機能**
+   - タスクに関連するノート（メモ）を追加
+
 ### オプション機能（将来拡張可能）
 
-1. タスク間の依存関係の管理
-2. スケジュール機能
-3. タグによる分類
-4. マイルストーン機能
-5. 通知機能
+1. フォルダごとのタスク管理
+2. タスク間の依存関係の管理
+3. スケジュール機能
+4. タグによる分類
+5. マイルストーン機能
 
 ## 非機能要件
 
@@ -60,39 +64,69 @@ AI MCP TODO アプリケーションは、AIがMaster Control Program (MCP)と�
    - JSONファイルによるシンプルなデータ保存
 
 4. **プラットフォーム**
-   - Python環境で動作すること
+   - Python 3.12以上の環境で動作すること
+   - uvパッケージマネージャーをサポート
+   - WSL環境での動作をサポート
 
 ## 技術仕様
 
 ### バックエンド
-- **言語**: Python
-- **フレームワーク**: FastAPI
+- **言語**: Python 3.12+
 - **データストレージ**: JSONファイル
+- **通信プロトコル**: MCP (Model Context Protocol)
 
-### API
-- RESTful API
-- JSON形式でのデータ交換
+### 依存パッケージ
+- python-dotenv
+- pydantic
+- mcp-server
+- typing-extensions
 
 ## インターフェース
 
-### API エンドポイント
+### MCP ツール
 
 1. **タスク管理**
-   - `GET /tasks` - すべてのタスクを取得
-   - `GET /tasks/{task_id}` - 特定のタスクを取得
-   - `POST /tasks` - 新しいタスクを作成
-   - `PUT /tasks/{task_id}` - タスクを更新
-   - `DELETE /tasks/{task_id}` - タスクを削除
+   - `get_tasks` - タスクリストを取得（ステータスや優先度でフィルタリング可能）
+   - `create_task` - 新しいタスクを作成（サブタスク付き）
+   - `complete_task` - タスクを完了としてマーク
 
 2. **サブタスク管理**
-   - `POST /tasks/{task_id}/subtasks` - サブタスクを追加
-   - `PUT /tasks/{task_id}/subtasks/{subtask_id}` - サブタスクを更新
-   - `DELETE /tasks/{task_id}/subtasks/{subtask_id}` - サブタスクを削除
+   - `add_subtask` - 既存タスクにサブタスクを追加
+   - `update_subtask` - サブタスクのステータスを更新
 
-3. **AI用特殊エンドポイント**
-   - `GET /next-task` - 次に処理すべきタスクを取得
-   - `PUT /tasks/{task_id}/progress` - タスクの進捗を更新
-   - `PUT /tasks/{task_id}/complete` - タスクを完了としてマーク
+3. **AI用特殊ツール**
+   - `get_next_task` - 優先度の高い次のタスクを取得
+   - `update_progress` - タスクの進捗を更新
+
+4. **ノート管理**
+   - `add_note` - タスクにノートを追加
+
+## データ構造
+
+```
+{
+  "id": 1,
+  "title": "タスクのタイトル",
+  "description": "タスクの詳細な説明",
+  "priority": 3,
+  "status": "todo",  // "todo", "in_progress", "done" のいずれか
+  "progress": 0,     // 0-100 の進捗率
+  "subtasks": [
+    {
+      "id": 1,
+      "description": "サブタスクの説明",
+      "status": "todo"  // "todo", "in_progress", "done" のいずれか
+    }
+  ],
+  "notes": [
+    {
+      "id": 1,
+      "content": "ノートの内容",
+      "timestamp": "2025-02-28T09:22:53.532808"
+    }
+  ]
+}
+```
 
 ## 制約事項
 
@@ -102,6 +136,16 @@ AI MCP TODO アプリケーションは、AIがMaster Control Program (MCP)と�
 
 ## 成功基準
 
-- AIがタスクを自律的に取得、処理、完了できること
+- AIがMCPを通じてタスクを自律的に取得、処理、完了できること
 - タスクの優先順位が正しく反映されること
+- サブタスクとノートが適切に管理されること
 - データが正しく永続化されること
+
+## 修正予定項目
+
+- タスクが保存されるフォルダが想定と違うので修正する
+- 利用する側のフォルダごとにタスクを管理できるようにする
+- テストコードを追加する
+- タスク関連の必要な処理を追加する
+- add_note機能の必要性を再評価する
+- ノートとタスクのそれぞれについてCRUD操作が確実にできるようにする

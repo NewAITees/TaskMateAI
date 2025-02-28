@@ -1,0 +1,18 @@
+{
+    "mcpServers": {
+      "TodoApplication": {
+        "command": "wsl.exe",
+        "args": [
+          "-e", 
+          "bash", 
+          "-c", 
+          "cd /絶対パス/TaskMateAI && /home/ユーザー/.local/bin/uv run TaskMateAI"
+        ],
+        "env": {},
+        "alwaysAllow": [
+          "get_tasks", "get_next_task", "create_task", "update_progress", 
+          "complete_task", "add_subtask", "update_subtask"
+        ]
+      }
+    }
+}

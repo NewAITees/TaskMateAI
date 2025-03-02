@@ -11,7 +11,7 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
 
 # Import functions to test
-from taskmateai.server import call_tool
+from taskmateai.server import call_tool, get_tasks_file_path
 
 
 class TestMCPTools:
@@ -20,7 +20,7 @@ class TestMCPTools:
     @pytest.mark.asyncio
     async def test_get_tasks_no_filter(self, temp_tasks_file_with_data, mock_tasks):
         """Test getting all tasks without filtering."""
-        with patch('taskmateai.server.TASKS_FILE', temp_tasks_file_with_data):
+        with patch('taskmateai.server.get_tasks_file_path', return_value=temp_tasks_file_with_data):
             result = await call_tool("get_tasks", {})
             assert len(result) == 1
             assert json.loads(result[0].text) == mock_tasks
@@ -28,7 +28,7 @@ class TestMCPTools:
     @pytest.mark.asyncio
     async def test_get_tasks_status_filter(self, temp_tasks_file_with_data, mock_tasks):
         """Test getting tasks filtered by status."""
-        with patch('taskmateai.server.TASKS_FILE', temp_tasks_file_with_data):
+        with patch('taskmateai.server.get_tasks_file_path', return_value=temp_tasks_file_with_data):
             result = await call_tool("get_tasks", {"status": "todo"})
             assert len(result) == 1
             
@@ -40,7 +40,7 @@ class TestMCPTools:
     @pytest.mark.asyncio
     async def test_get_tasks_priority_filter(self, temp_tasks_file_with_data, mock_tasks):
         """Test getting tasks filtered by minimum priority."""
-        with patch('taskmateai.server.TASKS_FILE', temp_tasks_file_with_data):
+        with patch('taskmateai.server.get_tasks_file_path', return_value=temp_tasks_file_with_data):
             result = await call_tool("get_tasks", {"priority_min": 3})
             assert len(result) == 1
             
@@ -51,7 +51,7 @@ class TestMCPTools:
     @pytest.mark.asyncio
     async def test_get_next_task(self, temp_tasks_file_with_data, mock_tasks):
         """Test getting the next highest priority task."""
-        with patch('taskmateai.server.TASKS_FILE', temp_tasks_file_with_data):
+        with patch('taskmateai.server.get_tasks_file_path', return_value=temp_tasks_file_with_data):
             result = await call_tool("get_next_task", {})
             assert len(result) == 1
             
@@ -67,7 +67,7 @@ class TestMCPTools:
     @pytest.mark.asyncio
     async def test_get_next_task_empty(self, temp_tasks_file):
         """Test getting the next task when there are no tasks."""
-        with patch('taskmateai.server.TASKS_FILE', temp_tasks_file):
+        with patch('taskmateai.server.get_tasks_file_path', return_value=temp_tasks_file):
             result = await call_tool("get_next_task", {})
             assert len(result) == 1
             assert "利用可能なタスクはありません" in result[0].text
@@ -75,7 +75,7 @@ class TestMCPTools:
     @pytest.mark.asyncio
     async def test_create_task(self, temp_tasks_file):
         """Test creating a new task."""
-        with patch('taskmateai.server.TASKS_FILE', temp_tasks_file):
+        with patch('taskmateai.server.get_tasks_file_path', return_value=temp_tasks_file):
             task_data = {
                 "title": "Test New Task",
                 "description": "Test description",
@@ -106,7 +106,7 @@ class TestMCPTools:
     @pytest.mark.asyncio
     async def test_update_progress(self, temp_tasks_file_with_data):
         """Test updating task progress."""
-        with patch('taskmateai.server.TASKS_FILE', temp_tasks_file_with_data):
+        with patch('taskmateai.server.get_tasks_file_path', return_value=temp_tasks_file_with_data):
             result = await call_tool("update_progress", {"task_id": 1, "progress": 75})
             assert len(result) == 1
             assert "進捗が 75% に更新されました" in result[0].text
@@ -120,7 +120,7 @@ class TestMCPTools:
     @pytest.mark.asyncio
     async def test_update_progress_to_100(self, temp_tasks_file_with_data):
         """Test updating task progress to 100% (completion)."""
-        with patch('taskmateai.server.TASKS_FILE', temp_tasks_file_with_data):
+        with patch('taskmateai.server.get_tasks_file_path', return_value=temp_tasks_file_with_data):
             result = await call_tool("update_progress", {"task_id": 1, "progress": 100})
             assert len(result) == 1
             assert "進捗が 100% に更新されました" in result[0].text
@@ -134,7 +134,7 @@ class TestMCPTools:
     @pytest.mark.asyncio
     async def test_complete_task(self, temp_tasks_file_with_data):
         """Test marking a task as complete."""
-        with patch('taskmateai.server.TASKS_FILE', temp_tasks_file_with_data):
+        with patch('taskmateai.server.get_tasks_file_path', return_value=temp_tasks_file_with_data):
             result = await call_tool("complete_task", {"task_id": 1})
             assert len(result) == 1
             assert "完了としてマークされました" in result[0].text
@@ -148,7 +148,7 @@ class TestMCPTools:
     @pytest.mark.asyncio
     async def test_add_subtask(self, temp_tasks_file_with_data):
         """Test adding a subtask to a task."""
-        with patch('taskmateai.server.TASKS_FILE', temp_tasks_file_with_data):
+        with patch('taskmateai.server.get_tasks_file_path', return_value=temp_tasks_file_with_data):
             result = await call_tool("add_subtask", {
                 "task_id": 2,
                 "description": "New subtask"
@@ -166,7 +166,7 @@ class TestMCPTools:
     @pytest.mark.asyncio
     async def test_update_subtask(self, temp_tasks_file_with_data):
         """Test updating a subtask status."""
-        with patch('taskmateai.server.TASKS_FILE', temp_tasks_file_with_data):
+        with patch('taskmateai.server.get_tasks_file_path', return_value=temp_tasks_file_with_data):
             result = await call_tool("update_subtask", {
                 "task_id": 1,
                 "subtask_id": 1,
@@ -188,7 +188,7 @@ class TestMCPTools:
     @pytest.mark.asyncio
     async def test_add_note(self, temp_tasks_file_with_data):
         """Test adding a note to a task."""
-        with patch('taskmateai.server.TASKS_FILE', temp_tasks_file_with_data):
+        with patch('taskmateai.server.get_tasks_file_path', return_value=temp_tasks_file_with_data):
             result = await call_tool("add_note", {
                 "task_id": 1,
                 "content": "Test note"

@@ -15,7 +15,8 @@ from taskmateai.server import (
     read_tasks, 
     write_tasks, 
     generate_task_id, 
-    generate_subtask_id
+    generate_subtask_id,
+    get_tasks_file_path
 )
 
 
@@ -24,19 +25,19 @@ class TestTaskUtils:
 
     def test_read_tasks_empty_file(self, temp_tasks_file):
         """Test reading an empty tasks file."""
-        with patch('taskmateai.server.TASKS_FILE', temp_tasks_file):
+        with patch('taskmateai.server.get_tasks_file_path', return_value=temp_tasks_file):
             tasks = read_tasks()
             assert tasks == []
     
     def test_read_tasks_with_data(self, temp_tasks_file_with_data, mock_tasks):
         """Test reading a tasks file with data."""
-        with patch('taskmateai.server.TASKS_FILE', temp_tasks_file_with_data):
+        with patch('taskmateai.server.get_tasks_file_path', return_value=temp_tasks_file_with_data):
             tasks = read_tasks()
             assert tasks == mock_tasks
     
     def test_read_tasks_nonexistent_file(self):
         """Test reading a non-existent tasks file."""
-        with patch('taskmateai.server.TASKS_FILE', '/nonexistent/file.json'):
+        with patch('taskmateai.server.get_tasks_file_path', return_value='/nonexistent/file.json'):
             tasks = read_tasks()
             assert tasks == []
     
@@ -45,13 +46,13 @@ class TestTaskUtils:
         with open(temp_tasks_file, 'w') as f:
             f.write("This is not valid JSON")
         
-        with patch('taskmateai.server.TASKS_FILE', temp_tasks_file):
+        with patch('taskmateai.server.get_tasks_file_path', return_value=temp_tasks_file):
             tasks = read_tasks()
             assert tasks == []
     
     def test_write_tasks(self, temp_tasks_file, mock_tasks):
         """Test writing tasks to a file."""
-        with patch('taskmateai.server.TASKS_FILE', temp_tasks_file):
+        with patch('taskmateai.server.get_tasks_file_path', return_value=temp_tasks_file):
             write_tasks(mock_tasks)
             
             with open(temp_tasks_file, 'r') as f:

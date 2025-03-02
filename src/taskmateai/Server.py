@@ -23,7 +23,7 @@ logger = logging.getLogger("taskmate-server")
 
 # JSONファイルのパス設定
 OUTPUT_DIR = "output"
-TASKS_FILE = os.path.join(OUTPUT_DIR, "tasks.json")
+DEFAULT_TASKS_FILE = os.path.join(OUTPUT_DIR, "tasks.json")
 
 # 出力ディレクトリが存在しない場合は作成
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -31,14 +31,54 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 # サーバの準備
 app = Server("taskmate-server")
 
+# タスクファイルのパスを取得する関数
+def get_tasks_file_path(agent_id: Optional[str] = None, project_name: Optional[str] = None) -> str:
+    """
+    タスクファイルのパスを生成する関数。
+    
+    Args:
+        agent_id: エージェントID（オプション）
+        project_name: プロジェクト名（オプション）
+        
+    Returns:
+        str: タスクファイルのパス
+    """
+    path_components = [OUTPUT_DIR]
+    
+    if agent_id:
+        path_components.append(agent_id)
+        
+        if project_name:
+            path_components.append(project_name)
+    
+    path_components.append("tasks.json")
+    tasks_file_path = os.path.join(*path_components)
+    
+    # 親ディレクトリが存在することを確認
+    os.makedirs(os.path.dirname(tasks_file_path), exist_ok=True)
+    
+    return tasks_file_path
+
 # JSONファイルから全タスクを読み込む関数
-def read_tasks():
-    if not os.path.exists(TASKS_FILE):
+def read_tasks(agent_id: Optional[str] = None, project_name: Optional[str] = None) -> List[Dict]:
+    """
+    JSONファイルからタスクを読み込む関数。
+    
+    Args:
+        agent_id: エージェントID（オプション）
+        project_name: プロジェクト名（オプション）
+        
+    Returns:
+        List[Dict]: タスクのリスト
+    """
+    tasks_file = get_tasks_file_path(agent_id, project_name)
+    
+    if not os.path.exists(tasks_file):
         # ファイルが存在しない場合は空のリストを返す
         return []
     
     try:
-        with open(TASKS_FILE, 'r', encoding='utf-8') as f:
+        with open(tasks_file, 'r', encoding='utf-8') as f:
             return json.load(f)
     except json.JSONDecodeError:
         logger.error("JSONファイルの解析エラー")
@@ -48,13 +88,78 @@ def read_tasks():
         return []
 
 # JSONファイルにタスクを書き込む関数
-def write_tasks(tasks):
+def write_tasks(tasks: List[Dict], agent_id: Optional[str] = None, project_name: Optional[str] = None) -> None:
+    """
+    JSONファイルにタスクを書き込む関数。
+    
+    Args:
+        tasks: 書き込むタスクのリスト
+        agent_id: エージェントID（オプション）
+        project_name: プロジェクト名（オプション）
+        
+    Raises:
+        RuntimeError: タスクの保存に失敗した場合
+    """
+    tasks_file = get_tasks_file_path(agent_id, project_name)
+    
     try:
-        with open(TASKS_FILE, 'w', encoding='utf-8') as f:
+        # 親ディレクトリが存在することを確認
+        os.makedirs(os.path.dirname(tasks_file), exist_ok=True)
+        
+        with open(tasks_file, 'w', encoding='utf-8') as f:
             json.dump(tasks, f, indent=2, ensure_ascii=False)
     except Exception as e:
         logger.error(f"タスクの書き込みエラー: {str(e)}")
         raise RuntimeError(f"タスクの保存に失敗しました: {str(e)}")
+
+# 利用可能なエージェントの一覧を取得する関数
+def list_agents() -> List[str]:
+    """
+    利用可能なエージェントの一覧を取得する関数。
+    
+    Returns:
+        List[str]: エージェントIDのリスト
+    """
+    agents = []
+    
+    try:
+        # エージェントディレクトリを検索
+        for item in os.listdir(OUTPUT_DIR):
+            item_path = os.path.join(OUTPUT_DIR, item)
+            if os.path.isdir(item_path):
+                agents.append(item)
+    except Exception as e:
+        logger.error(f"エージェント一覧の取得エラー: {str(e)}")
+    
+    return agents
+
+# 特定のエージェントに関連するプロジェクトの一覧を取得する関数
+def list_projects(agent_id: str) -> List[str]:
+    """
+    特定のエージェントに関連するプロジェクトの一覧を取得する関数。
+    
+    Args:
+        agent_id: エージェントID
+        
+    Returns:
+        List[str]: プロジェクト名のリスト
+    """
+    projects = []
+    agent_dir = os.path.join(OUTPUT_DIR, agent_id)
+    
+    if not os.path.exists(agent_dir) or not os.path.isdir(agent_dir):
+        return projects
+    
+    try:
+        # プロジェクトディレクトリを検索
+        for item in os.listdir(agent_dir):
+            item_path = os.path.join(agent_dir, item)
+            if os.path.isdir(item_path):
+                projects.append(item)
+    except Exception as e:
+        logger.error(f"プロジェクト一覧の取得エラー: {str(e)}")
+    
+    return projects
 
 # 新しいタスクIDを生成する関数
 def generate_task_id(tasks):
@@ -71,7 +176,10 @@ def generate_subtask_id(subtasks):
 # 利用可能なTODOリソース一覧の取得
 @app.list_resources()
 async def list_resources() -> list[Resource]:
-    return [
+    resources = []
+    
+    # デフォルトリソース
+    resources.extend([
         Resource(
             uri=AnyUrl("taskmate://tasks/all"),
             name="All Tasks",
@@ -90,22 +198,93 @@ async def list_resources() -> list[Resource]:
             mimeType="application/json",
             description="List of completed tasks"
         )
-    ]
+    ])
+    
+    # エージェントごとのリソース
+    for agent_id in list_agents():
+        # エージェントレベルのリソース
+        resources.extend([
+            Resource(
+                uri=AnyUrl(f"taskmate://{agent_id}/tasks/all"),
+                name=f"All Tasks for {agent_id}",
+                mimeType="application/json",
+                description=f"Complete list of all tasks for agent {agent_id}"
+            ),
+            Resource(
+                uri=AnyUrl(f"taskmate://{agent_id}/tasks/pending"),
+                name=f"Pending Tasks for {agent_id}",
+                mimeType="application/json",
+                description=f"List of tasks not yet completed for agent {agent_id}"
+            ),
+            Resource(
+                uri=AnyUrl(f"taskmate://{agent_id}/tasks/completed"),
+                name=f"Completed Tasks for {agent_id}",
+                mimeType="application/json",
+                description=f"List of completed tasks for agent {agent_id}"
+            )
+        ])
+        
+        # プロジェクトごとのリソース
+        for project_name in list_projects(agent_id):
+            resources.extend([
+                Resource(
+                    uri=AnyUrl(f"taskmate://{agent_id}/{project_name}/tasks/all"),
+                    name=f"All Tasks for {agent_id}/{project_name}",
+                    mimeType="application/json",
+                    description=f"Complete list of all tasks for agent {agent_id} in project {project_name}"
+                ),
+                Resource(
+                    uri=AnyUrl(f"taskmate://{agent_id}/{project_name}/tasks/pending"),
+                    name=f"Pending Tasks for {agent_id}/{project_name}",
+                    mimeType="application/json",
+                    description=f"List of tasks not yet completed for agent {agent_id} in project {project_name}"
+                ),
+                Resource(
+                    uri=AnyUrl(f"taskmate://{agent_id}/{project_name}/tasks/completed"),
+                    name=f"Completed Tasks for {agent_id}/{project_name}",
+                    mimeType="application/json",
+                    description=f"List of completed tasks for agent {agent_id} in project {project_name}"
+                )
+            ])
+    
+    return resources
 
 # 特定のTODOリソースの取得
 @app.read_resource()
 async def read_resource(uri: AnyUrl) -> str:
     uri_str = str(uri)
     
+    # エージェントとプロジェクトを抽出 (例: "taskmate://agent1/project1/tasks/all")
+    uri_parts = uri_str.replace("taskmate://", "").split("/")
+    
+    agent_id = None
+    project_name = None
+    resource_type = None
+    
+    if len(uri_parts) >= 3 and uri_parts[-2] == "tasks":
+        # エージェントとプロジェクトが指定されている場合 (taskmate://agent/project/tasks/all)
+        agent_id = uri_parts[0]
+        project_name = uri_parts[1]
+        resource_type = uri_parts[-1]
+    elif len(uri_parts) >= 2 and uri_parts[-2] == "tasks":
+        # エージェントのみ指定されている場合 (taskmate://agent/tasks/all)
+        agent_id = uri_parts[0]
+        resource_type = uri_parts[-1]
+    elif len(uri_parts) >= 1:
+        # 従来の形式の場合 (taskmate://tasks/all)
+        resource_type = uri_parts[-1]
+    else:
+        raise ValueError(f"不正なリソースURI: {uri}")
+    
     # すべてのタスクを読み込む
-    tasks = read_tasks()
+    tasks = read_tasks(agent_id, project_name)
     
     # リソースURIに基づいてフィルタリング
-    if uri_str == "taskmate://tasks/all":
+    if resource_type == "all":
         filtered_tasks = tasks
-    elif uri_str == "taskmate://tasks/pending":
+    elif resource_type == "pending":
         filtered_tasks = [t for t in tasks if t.get("status") in ["todo", "in_progress"]]
-    elif uri_str == "taskmate://tasks/completed":
+    elif resource_type == "completed":
         filtered_tasks = [t for t in tasks if t.get("status") == "done"]
     else:
         raise ValueError(f"Unknown resource: {uri}")
@@ -116,6 +295,28 @@ async def read_resource(uri: AnyUrl) -> str:
 @app.list_tools()
 async def list_tools() -> list[Tool]:
     return [
+        Tool(
+            name="list_agents",
+            description="登録されているエージェントの一覧を取得します。",
+            inputSchema={
+                "type": "object",
+                "properties": {}
+            }
+        ),
+        Tool(
+            name="list_projects",
+            description="特定のエージェントに関連するプロジェクトの一覧を取得します。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "agent_id": {
+                        "type": "string",
+                        "description": "エージェントID"
+                    }
+                },
+                "required": ["agent_id"]
+            }
+        ),
         Tool(
             name="get_tasks",
             description="現在のタスクリストを取得します。優先度や進捗状況でフィルタリングできます。",
@@ -132,6 +333,14 @@ async def list_tools() -> list[Tool]:
                         "description": "最小優先度 (1-5)",
                         "minimum": 1,
                         "maximum": 5
+                    },
+                    "agent_id": {
+                        "type": "string",
+                        "description": "タスクの対象エージェントID"
+                    },
+                    "project_name": {
+                        "type": "string",
+                        "description": "タスクの対象プロジェクト名"
                     }
                 }
             }
@@ -141,7 +350,16 @@ async def list_tools() -> list[Tool]:
             description="優先度の高い次のタスクを取得し、自動的に'in_progress'ステータスに更新します。",
             inputSchema={
                 "type": "object",
-                "properties": {}
+                "properties": {
+                    "agent_id": {
+                        "type": "string",
+                        "description": "タスクの対象エージェントID"
+                    },
+                    "project_name": {
+                        "type": "string",
+                        "description": "タスクの対象プロジェクト名"
+                    }
+                }
             }
         ),
         Tool(
@@ -171,6 +389,14 @@ async def list_tools() -> list[Tool]:
                         "items": {
                             "type": "string"
                         }
+                    },
+                    "agent_id": {
+                        "type": "string",
+                        "description": "タスクの対象エージェントID"
+                    },
+                    "project_name": {
+                        "type": "string",
+                        "description": "タスクの対象プロジェクト名"
                     }
                 },
                 "required": ["title", "description"]
@@ -191,6 +417,14 @@ async def list_tools() -> list[Tool]:
                         "description": "タスクの進捗率 (0-100)",
                         "minimum": 0,
                         "maximum": 100
+                    },
+                    "agent_id": {
+                        "type": "string",
+                        "description": "タスクの対象エージェントID"
+                    },
+                    "project_name": {
+                        "type": "string",
+                        "description": "タスクの対象プロジェクト名"
                     }
                 },
                 "required": ["task_id", "progress"]
@@ -205,6 +439,14 @@ async def list_tools() -> list[Tool]:
                     "task_id": {
                         "type": "integer",
                         "description": "タスクID"
+                    },
+                    "agent_id": {
+                        "type": "string",
+                        "description": "タスクの対象エージェントID"
+                    },
+                    "project_name": {
+                        "type": "string",
+                        "description": "タスクの対象プロジェクト名"
                     }
                 },
                 "required": ["task_id"]
@@ -212,17 +454,25 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="add_subtask",
-            description="既存のタスクにサブタスクを追加します。",
+            description="既存タスクにサブタスクを追加します。",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "task_id": {
                         "type": "integer",
-                        "description": "タスクID"
+                        "description": "親タスクID"
                     },
                     "description": {
                         "type": "string",
                         "description": "サブタスクの説明"
+                    },
+                    "agent_id": {
+                        "type": "string",
+                        "description": "タスクの対象エージェントID"
+                    },
+                    "project_name": {
+                        "type": "string",
+                        "description": "タスクの対象プロジェクト名"
                     }
                 },
                 "required": ["task_id", "description"]
@@ -236,7 +486,7 @@ async def list_tools() -> list[Tool]:
                 "properties": {
                     "task_id": {
                         "type": "integer",
-                        "description": "タスクID"
+                        "description": "親タスクID"
                     },
                     "subtask_id": {
                         "type": "integer",
@@ -244,8 +494,16 @@ async def list_tools() -> list[Tool]:
                     },
                     "status": {
                         "type": "string",
-                        "description": "サブタスクの新しいステータス",
+                        "description": "サブタスクの新しいステータス ('todo', 'in_progress', 'done')",
                         "enum": ["todo", "in_progress", "done"]
+                    },
+                    "agent_id": {
+                        "type": "string",
+                        "description": "タスクの対象エージェントID"
+                    },
+                    "project_name": {
+                        "type": "string",
+                        "description": "タスクの対象プロジェクト名"
                     }
                 },
                 "required": ["task_id", "subtask_id", "status"]
@@ -264,6 +522,14 @@ async def list_tools() -> list[Tool]:
                     "content": {
                         "type": "string",
                         "description": "ノートの内容"
+                    },
+                    "agent_id": {
+                        "type": "string",
+                        "description": "タスクの対象エージェントID"
+                    },
+                    "project_name": {
+                        "type": "string",
+                        "description": "タスクの対象プロジェクト名"
                     }
                 },
                 "required": ["task_id", "content"]
@@ -276,7 +542,8 @@ async def list_tools() -> list[Tool]:
 async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
     # ツール名の検証
     valid_tools = ["get_tasks", "get_next_task", "create_task", "update_progress", 
-                 "complete_task", "add_subtask", "update_subtask", "add_note"]
+                 "complete_task", "add_subtask", "update_subtask", "add_note",
+                 "list_agents", "list_projects"]
     if name not in valid_tools:
         raise ValueError(f"Unknown tool: {name}")
 
@@ -285,9 +552,28 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
         raise ValueError("Invalid arguments: must be a dictionary")
 
     try:
+        # 共通パラメータの取得
+        agent_id = arguments.get("agent_id")
+        project_name = arguments.get("project_name")
+        
+        # エージェント一覧の取得
+        if name == "list_agents":
+            agents = list_agents()
+            return [TextContent(type="text", text=json.dumps(agents, indent=2, ensure_ascii=False))]
+        
+        # プロジェクト一覧の取得
+        elif name == "list_projects":
+            # 必須パラメータの確認
+            if "agent_id" not in arguments:
+                raise ValueError("Missing required parameter: agent_id")
+                
+            agent_id = arguments["agent_id"]
+            projects = list_projects(agent_id)
+            return [TextContent(type="text", text=json.dumps(projects, indent=2, ensure_ascii=False))]
+        
         # get_tasks - タスク一覧の取得
-        if name == "get_tasks":
-            tasks = read_tasks()
+        elif name == "get_tasks":
+            tasks = read_tasks(agent_id, project_name)
             
             # フィルタリング
             if "status" in arguments and arguments["status"]:
@@ -299,7 +585,7 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
         
         # get_next_task - 次のタスクの取得
         elif name == "get_next_task":
-            tasks = read_tasks()
+            tasks = read_tasks(agent_id, project_name)
             
             # 未完了のタスクをフィルタリング
             pending_tasks = [t for t in tasks if t.get("status") != "done"]
@@ -318,7 +604,7 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
             for i, task in enumerate(tasks):
                 if task.get("id") == next_task.get("id"):
                     tasks[i]["status"] = "in_progress"
-                    write_tasks(tasks)
+                    write_tasks(tasks, agent_id, project_name)
                     break
             
             return [TextContent(type="text", text=json.dumps(next_task, indent=2, ensure_ascii=False))]
@@ -329,7 +615,7 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
             if "title" not in arguments or "description" not in arguments:
                 raise ValueError("Missing required parameters: title and description")
             
-            tasks = read_tasks()
+            tasks = read_tasks(agent_id, project_name)
             
             # サブタスクの準備
             subtasks = []
@@ -350,10 +636,12 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
             
             # タスクを追加して保存
             tasks.append(new_task)
-            write_tasks(tasks)
+            write_tasks(tasks, agent_id, project_name)
             
+            agent_info = f" (エージェント: {agent_id})" if agent_id else ""
+            project_info = f" (プロジェクト: {project_name})" if project_name else ""
             return [TextContent(type="text", 
-                     text=f"タスク '{new_task['title']}' (ID: {new_task['id']}) が作成されました。")]
+                     text=f"タスク '{new_task['title']}' (ID: {new_task['id']}){agent_info}{project_info} が作成されました。")]
         
         # update_progress - 進捗更新
         elif name == "update_progress":
@@ -364,7 +652,7 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
             task_id = arguments["task_id"]
             progress = arguments["progress"]
             
-            tasks = read_tasks()
+            tasks = read_tasks(agent_id, project_name)
             
             # タスクを見つけて更新
             task_found = False
@@ -385,7 +673,7 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
                 return [TextContent(type="text", text=f"エラー: タスク (ID: {task_id}) が見つかりません。")]
             
             # 変更を保存
-            write_tasks(tasks)
+            write_tasks(tasks, agent_id, project_name)
             
             return [TextContent(type="text", 
                      text=f"タスク (ID: {task_id}) の進捗が {progress}% に更新されました。")]
@@ -398,7 +686,7 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
             
             task_id = arguments["task_id"]
             
-            tasks = read_tasks()
+            tasks = read_tasks(agent_id, project_name)
             
             # タスクを見つけて更新
             task_found = False
@@ -413,7 +701,7 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
                 return [TextContent(type="text", text=f"エラー: タスク (ID: {task_id}) が見つかりません。")]
             
             # 変更を保存
-            write_tasks(tasks)
+            write_tasks(tasks, agent_id, project_name)
             
             return [TextContent(type="text", 
                      text=f"タスク (ID: {task_id}) が完了としてマークされました。")]
@@ -427,7 +715,7 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
             task_id = arguments["task_id"]
             description = arguments["description"]
             
-            tasks = read_tasks()
+            tasks = read_tasks(agent_id, project_name)
             
             # タスクを見つけてサブタスクを追加
             task_found = False
@@ -452,7 +740,7 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
                 return [TextContent(type="text", text=f"エラー: タスク (ID: {task_id}) が見つかりません。")]
             
             # 変更を保存
-            write_tasks(tasks)
+            write_tasks(tasks, agent_id, project_name)
             
             return [TextContent(type="text", 
                      text=f"サブタスク (ID: {new_subtask['id']}) がタスク (ID: {task_id}) に追加されました。")]
@@ -471,7 +759,7 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
             if status not in ["todo", "in_progress", "done"]:
                 raise ValueError("Invalid status: must be 'todo', 'in_progress', or 'done'")
             
-            tasks = read_tasks()
+            tasks = read_tasks(agent_id, project_name)
             
             # タスクとサブタスクを見つけて更新
             task_found = False
@@ -497,7 +785,7 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
                 return [TextContent(type="text", text=f"エラー: サブタスク (ID: {subtask_id}) が見つかりません。")]
             
             # 変更を保存
-            write_tasks(tasks)
+            write_tasks(tasks, agent_id, project_name)
             
             # メインタスクの進捗を自動更新 (サブタスクの完了率から計算)
             for i, task in enumerate(tasks):
@@ -513,7 +801,7 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
                         tasks[i]["status"] = "in_progress"
                     
                     # 更新したタスク情報を保存
-                    write_tasks(tasks)
+                    write_tasks(tasks, agent_id, project_name)
                     break
             
             return [TextContent(type="text", 
@@ -528,7 +816,7 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
             task_id = arguments["task_id"]
             content = arguments["content"]
             
-            tasks = read_tasks()
+            tasks = read_tasks(agent_id, project_name)
             
             # タスクを見つけてノートを追加
             task_found = False
@@ -554,7 +842,7 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
                 return [TextContent(type="text", text=f"エラー: タスク (ID: {task_id}) が見つかりません。")]
             
             # 変更を保存
-            write_tasks(tasks)
+            write_tasks(tasks, agent_id, project_name)
             
             return [TextContent(type="text", 
                      text=f"ノートがタスク (ID: {task_id}) に追加されました。")]
